@@ -18,18 +18,22 @@ class Elemento {
 
 val regras: MutableList<Regra> = mutableListOf()
 val firstMap: HashMap<String, List<String>> = hashMapOf()
+val followMap: HashMap<String, MutableList<String>> = hashMapOf()
+
+const val nullValue = "null"
+const val endLineValue = "$"
 
 fun main(){
     val gramatica = """
         <expressao>::=<termo><expressao_linha>
-        <expressao_linha>::=+<termo><expressao_linha>|-<termo><expressao_linha>|null
+        <expressao_linha>::=+<termo><expressao_linha>|-<termo><expressao_linha>|$nullValue
         <termo>::=<fator><termo_linha>
-        <termo_linha>::*<fator><termo_linha>|/<fator><termo_linha>|null
+        <termo_linha>::=*<fator><termo_linha>|/<fator><termo_linha>|$nullValue
         <fator>::=(<expressao>)|<num>|<ide>
         <num>::=<dig><num_linha>
-        <num_linha>::=<dig><num_linha>|null
+        <num_linha>::=<dig><num_linha>|$nullValue
         <ide>::=<letra><ide_linha>
-        <ide_linha>::=<letra><ide_linha>|<dig><ide_linha>|null
+        <ide_linha>::=<letra><ide_linha>|<dig><ide_linha>|$nullValue
         <dig>::=0|1|2|3|4|5|6|7|8|9
         <letra>::=A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z
     """.trimIndent()
@@ -39,7 +43,11 @@ fun main(){
     processarGramatica(gramatica)
     gerarFirst()
     mostrarFirsts()
+    gerarFollow()
+    mostrarFollows()
 }
+
+/**GRAMÁTICA**/
 
 fun processarGramatica(texto:String){
     for(linha in texto.lines()){
@@ -88,8 +96,8 @@ fun processarElementos(texto:String): MutableList<Elemento>{
             elemento.nome = nome
             elemento.tipo = Tipo.NAO_TERMINAL
             i = fechaPos
-        }else if(c == 'n' && texto.length >= i+4 && texto.substring(i, i+4) == "null"){
-            elemento.nome = "null"
+        }else if(c == 'n' && texto.length >= i+4 && texto.substring(i, i+4) == nullValue){
+            elemento.nome = nullValue
             elemento.tipo = Tipo.EPSILON
             i+=4
         }else{
@@ -111,11 +119,12 @@ fun processarElementos(texto:String): MutableList<Elemento>{
     return elementos
 }
 
+/**FIRST**/
+
 fun gerarFirst(){
     for(regra in regras){
         gerarFirst(regra)
     }
-    removerTerminaisFirst()
 }
 
 fun gerarFirst(regra: Regra){
@@ -140,8 +149,8 @@ fun gerarFirstSubRegra(subRegra: SubRegra, nomeRegra: String): List<String>{
         }
 
         Tipo.EPSILON -> {
-            firstMap[primeiroElemento.nome] = listOf("null")
-            first.add("null")
+            firstMap[primeiroElemento.nome] = listOf(nullValue)
+            first.add(nullValue)
         }
 
         Tipo.NAO_TERMINAL -> {
@@ -152,12 +161,12 @@ fun gerarFirstSubRegra(subRegra: SubRegra, nomeRegra: String): List<String>{
                     }
                     val firstElemento = firstMap[elemento.nome]
                     if(firstElemento != null){
-                        if(first.contains("null") && !firstElemento.contains("null")){
-                            first.remove("null")
+                        if(first.contains(nullValue) && !firstElemento.contains(nullValue)){
+                            first.remove(nullValue)
                         }
                         first = first.union(firstElemento).toMutableList()
                     }
-                    if(first.isNotEmpty() && !first.contains("null")){
+                    if(first.isNotEmpty() && !first.contains(nullValue)){
                         break
                     }
                 }
@@ -179,7 +188,7 @@ fun gerarFirstElemento(elemento: Elemento){
         }
 
         Tipo.EPSILON -> {
-            firstMap[chave] = listOf("null")
+            firstMap[chave] = listOf(nullValue)
         }
 
         Tipo.NAO_TERMINAL -> {
@@ -190,31 +199,126 @@ fun gerarFirstElemento(elemento: Elemento){
     }
 }
 
-fun removerTerminaisFirst(){
-    val chaves = mutableListOf<String>()
+fun mostrarFirsts(){
+    println("First:\n")
     for(chave in firstMap.keys){
-        if(firstMap[chave]?.size == 1){
-            chaves.add(chave)
+        var first = ""
+        var pular = false
+        firstMap[chave]?.let {
+            if(it.size > 1){
+                for(string in it){
+                    if(first.isEmpty()){
+                        first = string
+                    }else{
+                        first += ", $string"
+                    }
+                }
+            }else{
+                pular = true
+            }
+        }
+
+        if(!pular){
+            println("$chave: $first")
         }
     }
-    for(chave in chaves){
-        firstMap.remove(chave)
+    println()
+}
+
+/**FOLLOW**/
+
+fun gerarFollow(){
+    if(regras.isNotEmpty()){
+        val regraInicial = regras[0]
+        for(regra in regras){
+            followMap[regra.nome] = mutableListOf()
+        }
+        //Regra 1 do Follow
+        followMap[regraInicial.nome]?.add(endLineValue)
+        followRegra2()
+        followRegra3()
     }
 }
 
-fun mostrarFirsts(){
-    for(chave in firstMap.keys){
-        var first = ""
-        firstMap[chave]?.let {
-            for(string in it){
-                if(first.isEmpty()){
-                    first = string
+fun followRegra2(){
+    for(regra in regras){
+        for(subRegra in regra.subRegras){
+            val numElementos = subRegra.elementos.size
+            if(numElementos > 2){
+                for(i in 1 until subRegra.elementos.size-1){
+                    val elemento = subRegra.elementos[i]
+                    val proximo = subRegra.elementos[i+1]
+                    if(elemento.tipo == Tipo.NAO_TERMINAL){
+                        if(proximo.tipo == Tipo.NAO_TERMINAL){
+                            firstMap[proximo.nome]?.let {  firstsProximo ->
+                                followMap[elemento.nome]?.union(firstsProximo)?.toMutableList()?.let {
+                                    it.remove(nullValue)
+                                    followMap[elemento.nome] = it
+                                }
+                            }
+                        }else if(proximo.tipo == Tipo.TERMINAL){
+                            if(followMap[elemento.nome]?.contains(proximo.nome) == false){
+                                followMap[elemento.nome]?.add(proximo.nome)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun followRegra3(){
+    for(regra in regras){
+        for(subRegra in regra.subRegras){
+            val numElementos = subRegra.elementos.size
+            if(numElementos >= 2){
+                for(i in 1 until numElementos){
+                    val elemento = subRegra.elementos[i]
+                    val proximoPos = i+1
+
+                    val checaProximo = checa@{
+                        val proximo = subRegra.elementos[proximoPos]
+                        if(proximo.tipo == Tipo.NAO_TERMINAL){
+                            regras.firstOrNull{ it.nome == proximo.nome }?.let { r ->
+                                for(sr in r.subRegras){
+                                    if(sr.elementos.firstOrNull{ it.tipo == Tipo.EPSILON } != null){
+                                        return@checa true
+                                    }
+                                }
+                            }
+                        }
+                        return@checa false
+                    }
+
+                    if(elemento.tipo == Tipo.NAO_TERMINAL && (proximoPos == numElementos || checaProximo())){
+                        followMap[regra.nome]?.let { followRegra ->
+                            followMap[elemento.nome]?.union(followRegra)?.toMutableList()?.let {
+                                followMap[elemento.nome] = it
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun mostrarFollows(){
+    println("Follow:\n")
+    for(chave in followMap.keys){
+        var follow = ""
+        followMap[chave]?.let { lista ->
+            for(string in lista){
+                if(follow.isEmpty()){
+                    follow = string
                 }else{
-                    first += ", $string"
+                    follow += ", $string"
                 }
             }
         }
 
-        println("$chave: $first")
+        println("$chave: $follow")
     }
+    println()
 }
