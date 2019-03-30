@@ -20,31 +20,33 @@ val regras: MutableList<Regra> = mutableListOf()
 val firstMap: HashMap<String, List<String>> = hashMapOf()
 val followMap: HashMap<String, MutableList<String>> = hashMapOf()
 
-const val nullValue = "null"
+const val epsilon = "null"
 const val endLineValue = "$"
 
 fun main(){
     val gramatica = """
         <expressao>::=<termo><expressao_linha>
-        <expressao_linha>::=+<termo><expressao_linha>|-<termo><expressao_linha>|$nullValue
+        <expressao_linha>::=+<termo><expressao_linha>|-<termo><expressao_linha>|$epsilon
         <termo>::=<fator><termo_linha>
-        <termo_linha>::=*<fator><termo_linha>|/<fator><termo_linha>|$nullValue
+        <termo_linha>::=*<fator><termo_linha>|/<fator><termo_linha>|$epsilon
         <fator>::=(<expressao>)|<num>|<ide>
         <num>::=<dig><num_linha>
-        <num_linha>::=<dig><num_linha>|$nullValue
+        <num_linha>::=<dig><num_linha>|$epsilon
         <ide>::=<letra><ide_linha>
-        <ide_linha>::=<letra><ide_linha>|<dig><ide_linha>|$nullValue
+        <ide_linha>::=<letra><ide_linha>|<dig><ide_linha>|$epsilon
         <dig>::=0|1|2|3|4|5|6|7|8|9
         <letra>::=A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z
     """.trimIndent()
 
-    //<letra>::=A|B|C
-
+    val tempoInicio = System.currentTimeMillis()
     processarGramatica(gramatica)
     gerarFirst()
-    mostrarFirsts()
     gerarFollow()
+    val tempoFim = System.currentTimeMillis()
+
+    mostrarFirsts()
     mostrarFollows()
+    print("Tempo execução: ${tempoFim - tempoInicio} (ms)")
 }
 
 /**GRAMÁTICA**/
@@ -96,8 +98,8 @@ fun processarElementos(texto:String): MutableList<Elemento>{
             elemento.nome = nome
             elemento.tipo = Tipo.NAO_TERMINAL
             i = fechaPos
-        }else if(c == 'n' && texto.length >= i+4 && texto.substring(i, i+4) == nullValue){
-            elemento.nome = nullValue
+        }else if(c == 'n' && texto.length >= i+4 && texto.substring(i, i+4) == epsilon){
+            elemento.nome = epsilon
             elemento.tipo = Tipo.EPSILON
             i+=4
         }else{
@@ -149,8 +151,8 @@ fun gerarFirstSubRegra(subRegra: SubRegra, nomeRegra: String): List<String>{
         }
 
         Tipo.EPSILON -> {
-            firstMap[primeiroElemento.nome] = listOf(nullValue)
-            first.add(nullValue)
+            firstMap[primeiroElemento.nome] = listOf(epsilon)
+            first.add(epsilon)
         }
 
         Tipo.NAO_TERMINAL -> {
@@ -161,12 +163,12 @@ fun gerarFirstSubRegra(subRegra: SubRegra, nomeRegra: String): List<String>{
                     }
                     val firstElemento = firstMap[elemento.nome]
                     if(firstElemento != null){
-                        if(first.contains(nullValue) && !firstElemento.contains(nullValue)){
-                            first.remove(nullValue)
+                        if(first.contains(epsilon) && !firstElemento.contains(epsilon)){
+                            first.remove(epsilon)
                         }
                         first = first.union(firstElemento).toMutableList()
                     }
-                    if(first.isNotEmpty() && !first.contains(nullValue)){
+                    if(first.isNotEmpty() && !first.contains(epsilon)){
                         break
                     }
                 }
@@ -188,7 +190,7 @@ fun gerarFirstElemento(elemento: Elemento){
         }
 
         Tipo.EPSILON -> {
-            firstMap[chave] = listOf(nullValue)
+            firstMap[chave] = listOf(epsilon)
         }
 
         Tipo.NAO_TERMINAL -> {
@@ -252,7 +254,7 @@ fun followRegra2(){
                         if(proximo.tipo == Tipo.NAO_TERMINAL){
                             firstMap[proximo.nome]?.let {  firstsProximo ->
                                 followMap[elemento.nome]?.union(firstsProximo)?.toMutableList()?.let {
-                                    it.remove(nullValue)
+                                    it.remove(epsilon)
                                     followMap[elemento.nome] = it
                                 }
                             }
