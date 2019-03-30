@@ -1,3 +1,5 @@
+import java.util.*
+
 enum class Tipo {
     TERMINAL, NAO_TERMINAL, EPSILON
 }
@@ -19,6 +21,7 @@ class Elemento {
 val regras: MutableList<Regra> = mutableListOf()
 val firstMap: HashMap<String, List<String>> = hashMapOf()
 val followMap: HashMap<String, MutableList<String>> = hashMapOf()
+val tabela: HashMap<Pair<Char, String>, SubRegra> = hashMapOf()
 
 const val epsilon = "null"
 const val endLineValue = "$"
@@ -38,14 +41,19 @@ fun main(){
         <letra>::=A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z
     """.trimIndent()
 
+    val string = "( a + b ) * 90$endLineValue".replace(" ".toRegex(), "")
+
     val tempoInicio = System.currentTimeMillis()
     processarGramatica(gramatica)
     gerarFirst()
     gerarFollow()
+    gerarTabelaPreditiva()
+    val stringValida = analiseSintatica(string)
     val tempoFim = System.currentTimeMillis()
 
     mostrarFirsts()
     mostrarFollows()
+    println("String: $string -> Válida:$stringValida")
     print("Tempo execução: ${tempoFim - tempoInicio} (ms)")
 }
 
@@ -323,4 +331,100 @@ fun mostrarFollows(){
         println("$chave: $follow")
     }
     println()
+}
+
+/**TABELA PREDITIVA**/
+
+fun gerarTabelaPreditiva(){
+    for(regra in regras){
+        for(subRegra in regra.subRegras){
+            if(subRegra.elementos.size > 0){
+                val primeiroElemento = subRegra.elementos[0]
+
+                when(primeiroElemento.tipo){
+                    Tipo.TERMINAL -> {
+                        val char = primeiroElemento.nome.toCharArray()[0]
+                        tabela[Pair(char, regra.nome)] = subRegra
+                    }
+                    Tipo.NAO_TERMINAL -> {
+                        firstMap[primeiroElemento.nome]?.let { first ->
+                            for(terminal in first){
+                                val char = terminal.toCharArray()[0]
+                                tabela[Pair(char, regra.nome)] = subRegra
+                            }
+                        }
+                    }
+                    Tipo.EPSILON -> {
+                        followMap[regra.nome]?.let { follow ->
+                            for(terminal in follow){
+                                val char = terminal.toCharArray()[0]
+                                tabela[Pair(char, regra.nome)] = subRegra
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun analiseSintatica(string: String) : Boolean {
+    if(regras.isNotEmpty()){
+        val pilha = Stack<Elemento>()
+
+        val inicio = Elemento()
+        inicio.nome = regras[0].nome
+        inicio.tipo = Tipo.NAO_TERMINAL
+
+        val fim = Elemento()
+        fim.nome = endLineValue
+        fim.tipo = Tipo.TERMINAL
+
+        pilha.push(fim)
+        pilha.push(inicio)
+
+        var cursor = 0
+        while(pilha.size > 0){
+            if(cursor > string.length){
+                return false
+            }
+
+            val char = string[cursor]
+            val topo = pilha.peek()
+            if(topo != null){
+                when(topo.tipo){
+                    Tipo.TERMINAL -> {
+                        if(char == topo.nome.toCharArray()[0]){
+                            pilha.pop()
+                            cursor++
+                        }else{
+                            return false
+                        }
+                    }
+
+                    Tipo.NAO_TERMINAL -> {
+                        val subRegra = tabela[Pair(char, topo.nome)]
+                        if(subRegra != null){
+                            pilha.pop()
+                            for(elemento in subRegra.elementos.reversed()){
+                                pilha.push(elemento)
+                            }
+                        }else{
+                            return false
+                        }
+                    }
+
+                    Tipo.EPSILON -> {
+                        pilha.pop()
+                    }
+                }
+            }else{
+                return false
+            }
+        }
+
+        return true
+    }
+
+    return false
 }
