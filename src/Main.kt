@@ -282,30 +282,28 @@ fun followRegra3(){
     for(regra in regras){
         for(subRegra in regra.subRegras){
             val numElementos = subRegra.elementos.size
-            if(numElementos >= 2){
-                for(i in 1 until numElementos){
-                    val elemento = subRegra.elementos[i]
-                    val proximoPos = i+1
+            for(i in 0 until numElementos){
+                val elemento = subRegra.elementos[i]
+                val proximoPos = i+1
 
-                    val checaProximo = checa@{
-                        val proximo = subRegra.elementos[proximoPos]
-                        if(proximo.tipo == Tipo.NAO_TERMINAL){
-                            regras.firstOrNull{ it.nome == proximo.nome }?.let { r ->
-                                for(sr in r.subRegras){
-                                    if(sr.elementos.firstOrNull{ it.tipo == Tipo.EPSILON } != null){
-                                        return@checa true
-                                    }
+                val checaProximo = checa@{
+                    val proximo = subRegra.elementos[proximoPos]
+                    if(proximo.tipo == Tipo.NAO_TERMINAL){
+                        regras.firstOrNull{ it.nome == proximo.nome }?.let { r ->
+                            for(sr in r.subRegras){
+                                if(sr.elementos.firstOrNull{ it.tipo == Tipo.EPSILON } != null){
+                                    return@checa true
                                 }
                             }
                         }
-                        return@checa false
                     }
+                    return@checa false
+                }
 
-                    if(elemento.tipo == Tipo.NAO_TERMINAL && (proximoPos == numElementos || checaProximo())){
-                        followMap[regra.nome]?.let { followRegra ->
-                            followMap[elemento.nome]?.union(followRegra)?.toMutableList()?.let {
-                                followMap[elemento.nome] = it
-                            }
+                if(elemento.tipo == Tipo.NAO_TERMINAL && (proximoPos == numElementos || checaProximo())){
+                    followMap[regra.nome]?.let { followRegra ->
+                        followMap[elemento.nome]?.union(followRegra)?.toMutableList()?.let {
+                            followMap[elemento.nome] = it
                         }
                     }
                 }
