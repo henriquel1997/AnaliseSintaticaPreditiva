@@ -26,7 +26,7 @@ val tabela: HashMap<Pair<Char, String>, SubRegra> = hashMapOf()
 const val epsilon = "null"
 const val endLineValue = "$"
 
-fun main(){
+fun main(args: Array<String>){
     val gramatica = """
         <expressao>::=<termo><expressao_linha>
         <expressao_linha>::=+<termo><expressao_linha>|-<termo><expressao_linha>|$epsilon
@@ -41,20 +41,38 @@ fun main(){
         <letra>::=A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z
     """.trimIndent()
 
-    val string = "( a + b ) * 90$endLineValue".replace(" ".toRegex(), "")
+    val string = "a90 * (35+9) / (b)$endLineValue".replace(" ".toRegex(), "")
 
-    val tempoInicio = System.currentTimeMillis()
+    val tempoInicioGramatica = System.currentTimeMillis()
     processarGramatica(gramatica)
+    val tempoFimGramatica = System.currentTimeMillis()
+
+    val tempoInicioFirst = System.currentTimeMillis()
     gerarFirst()
+    val tempoFimFirst = System.currentTimeMillis()
+
+    val tempoInicioFollow = System.currentTimeMillis()
     gerarFollow()
+    val tempoFimFollow = System.currentTimeMillis()
+
+    val tempoInicioTabela = System.currentTimeMillis()
     gerarTabelaPreditiva()
+    val tempoFimTabela = System.currentTimeMillis()
+
+    val tempoInicioAnalise = System.currentTimeMillis()
     val stringValida = analiseSintatica(string)
-    val tempoFim = System.currentTimeMillis()
+    val tempoFimAnalise = System.currentTimeMillis()
 
     mostrarFirsts()
     mostrarFollows()
-    println("String: $string -> Válida:$stringValida")
-    print("Tempo execução: ${tempoFim - tempoInicio} (ms)")
+
+    println("String: $string -> Válida: $stringValida")
+    println("Tempo para ler a gramática: ${tempoFimGramatica - tempoInicioGramatica} (ms)")
+    println("Tempo para gerar o first: ${tempoFimFirst - tempoInicioFirst} (ms)")
+    println("Tempo para gerar o follow: ${tempoFimFollow - tempoInicioFollow} (ms)")
+    println("Tempo para gerar a tabela: ${tempoFimTabela - tempoInicioTabela} (ms)")
+    println("Tempo para fazer a análise: ${tempoFimAnalise - tempoInicioAnalise} (ms)")
+    println("Tempo execução total: ${tempoFimAnalise - tempoInicioGramatica} (ms)")
 }
 
 /**GRAMÁTICA**/
